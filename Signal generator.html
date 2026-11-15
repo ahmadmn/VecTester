@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Signal generator</title>
+<style>
+:root{
+  --bg:#f3f5f2;--panel:#fff;--ink:#14201a;--mute:#5b6b62;--line:#cfd8d2;--accent:#0a7d4f;--accent-ink:#fff;--warn:#b3261e;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1511;--panel:#16201a;--ink:#e6efe9;--mute:#93a69b;--line:#2b3a31;--accent:#3ddc97;--accent-ink:#06210f;--warn:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1511;--panel:#16201a;--ink:#e6efe9;--mute:#93a69b;--line:#2b3a31;--accent:#3ddc97;--accent-ink:#06210f;--warn:#ff8a80;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Segoe UI",Roboto,system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:1.1rem;margin:0 0 12px;font-weight:600}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.readout{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.big{font:600 2.4rem/1.1 "Courier New",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.big small{font-size:1rem;color:var(--mute);margin-left:4px}
+label{display:block;color:var(--mute);font-size:.85rem;margin:12px 0 4px}
+input[type=range]{width:100%;height:36px;accent-color:var(--accent)}
+input[type=number],select{width:100%;min-height:44px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 0}
+button{min-height:44px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.presets button{flex:1 1 30%}
+#go{width:100%;min-height:64px;font-size:1.3rem;font-weight:600;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#go.on{background:var(--warn);border-color:var(--warn);color:#fff}
+.note{color:var(--mute);font-size:.85rem;margin:8px 0 0}
+#msg{color:var(--warn);font-size:.9rem;min-height:1.2em;margin:6px 0 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>Signal generator</h1>
+
+  <div class="panel">
+    <div class="readout">
+      <div class="big"><span id="fOut">1000</span><small>Hz</small></div>
+      <div class="big"><span id="vOut">0.500</span><small>Vpp</small></div>
+    </div>
+    <p class="note" id="info">Output: not started</p>
+  </div>
+
+  <button id="go" type="button">Start</button>
+  <p id="msg" role="status"></p>
+
+  <div class="panel">
+    <label for="fSlider">Frequency (20 Hz to 20 kHz, logarithmic)</label>
+    <input id="fSlider" type="range" min="0" max="1000" value="567">
+    <div class="row">
+      <input id="fNum" type="number" min="20" max="20000" step="1" value="1000" inputmode="decimal" aria-label="Frequency in Hz">
+      <button id="fDown" type="button">&minus;1%</button>
+      <button id="fUp" type="button">+1%</button>
+    </div>
+    <div class="row presets" style="margin-top:8px">
+      <button type="button" data-f="20">20</button><button type="button" data-f="100">100</button><button type="button" data-f="440">440</button>
+      <button type="button" data-f="1000">1k</button><button type="button" data-f="10000">10k</button><button type="button" data-f="20000">20k</button>
+    </div>
+
+    <label for="vSlider">Amplitude (0 to 1 Vpp)</label>
+    <input id="vSlider" type="range" min="0" max="1000" value="500">
+    <input id="vNum" type="number" min="0" max="1" step="0.001" value="0.5" inputmode="decimal" aria-label="Amplitude in Vpp">
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <div>
+        <label for="wave">Waveform</label>
+        <select id="wave"><option value="sine">Sine</option><option value="square">Square</option><option value="triangle">Triangle</option><option value="sawtooth">Sawtooth</option></select>
+      </div>
+      <div>
+        <label for="chan">Channels</label>
+        <select id="chan"><option value="both">Left + right (same)</option><option value="left">Left only</option><option value="right">Right only</option><option value="diff">Right inverted (differential)</option></select>
+      </div>
+    </div>
+
+    <label for="cal">Calibration: measured Vpp at 100% (volume at max, amplitude 1.0 of full scale)</label>
+    <input id="cal" type="number" min="0.1" max="5" step="0.01" value="2" inputmode="decimal">
+    <p class="note">Samsung doesn’t publish the output level, so measure a full-scale sine with a scope or meter and enter it here. Until then, the Vpp shown is an estimate. Set media volume to maximum and switch off Dolby Atmos and other sound effects.</p>
+  </div>
+</main>
+
+<script>
+(function(){
+  var MIN=20, MAX=20000, ctx=null, osc=null, gL=null, gR=null, merger=null, wake=null, running=false;
+  var $=function(id){return document.getElementById(id)};
+  var go=$("go"), msg=$("msg");
+  var s={f:1000,v:0.5,cal:2,wave:"sine",chan:"both"};
+
+  try{var saved=JSON.parse(localStorage.getItem("siggen")||"null"); if(saved){ if(saved.cal>0) s.cal=saved.cal; if(saved.wave) s.wave=saved.wave; if(saved.chan) s.chan=saved.chan; }}catch(e){}
+
+  function clamp(x,a,b){return Math.min(b,Math.max(a,x))}
+  function fromSlider(x){return MIN*Math.pow(MAX/MIN,x/1000)}
+  function toSlider(f){return Math.round(1000*Math.log(f/MIN)/Math.log(MAX/MIN))}
+  function save(){try{localStorage.setItem("siggen",JSON.stringify({cal:s.cal,wave:s.wave,chan:s.chan}))}catch(e){}}
+
+  function gain(){ return clamp(s.v/s.cal,0,1); }
+
+  function applyAudio(){
+    if(!ctx||!osc) return;
+    var t=ctx.currentTime, g=gain();
+    osc.frequency.setTargetAtTime(s.f,t,0.01);
+    osc.type=s.wave;
+    var l=0,r=0;
+    if(s.chan==="both"){l=g;r=g}
+    else if(s.chan==="left"){l=g}
+    else if(s.chan==="right"){r=g}
+    else {l=g;r=-g}
+    gL.gain.setTargetAtTime(l,t,0.02);
+    gR.gain.setTargetAtTime(r,t,0.02);
+  }
+
+  function render(){
+    $("fOut").textContent=s.f<1000?s.f.toFixed(s.f%1?1:0):(s.f%1?s.f.toFixed(1):String(s.f));
+    var v=s.v*(s.chan==="diff"?1:1);
+    $("vOut").textContent=v.toFixed(3);
+    if(document.activeElement!==$("fNum")) $("fNum").value=Math.round(s.f*10)/10;
+    if(document.activeElement!==$("vNum")) $("vNum").value=s.v.toFixed(3);
+    $("fSlider").value=toSlider(s.f);
+    $("vSlider").value=Math.round(s.v*1000);
+    if(gain()>=1 && s.v>s.cal-1e-9) msg.textContent="Amplitude is limited by the calibration value ("+s.cal.toFixed(2)+" Vpp).";
+    else if(msg.dataset.keep!=="1") msg.textContent="";
+  }
+
+  function setF(f){s.f=clamp(+f||MIN,MIN,MAX);applyAudio();render()}
+  function setV(v){s.v=clamp(+v||0,0,1);applyAudio();render()}
+
+  async function start(){
+    msg.dataset.keep="0";
+    try{
+      var AC=window.AudioContext||window.webkitAudioContext;
+      ctx=new AC({latencyHint:"interactive"});
+      if(ctx.state==="suspended") await ctx.resume();
+      osc=ctx.createOscillator();
+      gL=ctx.createGain(); gR=ctx.createGain();
+      gL.gain.value=0; gR.gain.value=0;
+      merger=ctx.createChannelMerger(2);
+      osc.connect(gL); osc.connect(gR);
+      gL.connect(merger,0,0); gR.connect(merger,0,1);
+      merger.connect(ctx.destination);
+      osc.frequency.value=s.f; osc.type=s.wave;
+      osc.start();
+      applyAudio();
+      running=true;
+      go.textContent="Stop"; go.classList.add("on");
+      $("info").textContent="Sample rate "+ctx.sampleRate+" Hz";
+      try{ if(navigator.wakeLock) wake=await navigator.wakeLock.request("screen"); }catch(e){}
+    }catch(e){
+      msg.textContent="Audio could not start: "+(e&&e.message?e.message:e); msg.dataset.keep="1";
+    }
+  }
+
+  function stop(){
+    if(!ctx) return;
+    var t=ctx.currentTime, c=ctx, o=osc;
+    gL.gain.setTargetAtTime(0,t,0.015); gR.gain.setTargetAtTime(0,t,0.015);
+    setTimeout(function(){try{o.stop()}catch(e){} c.close()},120);
+    ctx=null;osc=null;running=false;
+    go.textContent="Start"; go.classList.remove("on");
+    $("info").textContent="Output: stopped";
+    try{ if(wake){wake.release();wake=null} }catch(e){}
+  }
+
+  go.addEventListener("click",function(){ running?stop():start() });
+  document.addEventListener("visibilitychange",async function(){
+    if(running && document.visibilityState==="visible"){
+      try{ if(navigator.wakeLock) wake=await navigator.wakeLock.request("screen"); }catch(e){}
+      try{ if(ctx&&ctx.state!=="running") await ctx.resume(); }catch(e){}
+    }
+  });
+
+  $("fSlider").addEventListener("input",function(e){setF(fromSlider(+e.target.value))});
+  $("fNum").addEventListener("input",function(e){ if(e.target.value!=="") { s.f=clamp(+e.target.value,MIN,MAX); applyAudio(); $("fSlider").value=toSlider(s.f); $("fOut").textContent=String(s.f); } });
+  $("fNum").addEventListener("change",function(e){setF(e.target.value)});
+  $("fDown").addEventListener("click",function(){setF(s.f*0.99)});
+  $("fUp").addEventListener("click",function(){setF(s.f*1.01)});
+  Array.prototype.forEach.call(document.querySelectorAll("[data-f]"),function(b){b.addEventListener("click",function(){setF(+b.dataset.f)})});
+
+  $("vSlider").addEventListener("input",function(e){setV(+e.target.value/1000)});
+  $("vNum").addEventListener("change",function(e){setV(e.target.value)});
+
+  $("wave").addEventListener("change",function(e){s.wave=e.target.value;save();applyAudio()});
+  $("chan").addEventListener("change",function(e){s.chan=e.target.value;save();applyAudio();render()});
+  $("cal").addEventListener("change",function(e){s.cal=clamp(+e.target.value||2,0.1,5);e.target.value=s.cal;save();applyAudio();render()});
+
+  $("wave").value=s.wave; $("chan").value=s.chan; $("cal").value=s.cal;
+  render();
+})();
+</script>
+</body>
+</html>
