@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>60 Hz CT simulator</title>
+<style>
+:root{
+  --bg:#f3f5f2;--panel:#fff;--ink:#14201a;--mute:#5b6b62;--line:#cfd8d2;--accent:#0a7d4f;--accent-ink:#fff;--warn:#b3261e;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1511;--panel:#16201a;--ink:#e6efe9;--mute:#93a69b;--line:#2b3a31;--accent:#3ddc97;--accent-ink:#06210f;--warn:#ff8a80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1511;--panel:#16201a;--ink:#e6efe9;--mute:#93a69b;--line:#2b3a31;--accent:#3ddc97;--accent-ink:#06210f;--warn:#ff8a80;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Segoe UI",Roboto,system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:1.1rem;margin:0 0 4px;font-weight:600}
+.sub{color:var(--mute);font-size:.9rem;margin:0 0 12px}
+.chs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.chs{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.panel h2{font-size:1rem;margin:0 0 6px;font-weight:600}
+.big{font:600 3rem/1.1 "Courier New",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.big small{font-size:1.2rem;color:var(--mute);margin-left:4px}
+label{display:block;color:var(--mute);font-size:.85rem;margin:12px 0 4px}
+input[type=range]{width:100%;height:40px;accent-color:var(--accent)}
+input[type=number]{width:100%;min-height:44px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>*{flex:1 1 0}
+button{min-height:44px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#go{width:100%;min-height:64px;font-size:1.3rem;font-weight:600;background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+#go.on{background:var(--warn);border-color:var(--warn);color:#fff}
+.note{color:var(--mute);font-size:.85rem;margin:8px 0 0}
+#msg{color:var(--warn);font-size:.9rem;min-height:1.2em;margin:6px 0 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>60 Hz CT simulator</h1>
+  <p class="sub">Two channels, fixed 60 Hz sine, in phase. 100 % equals the rated CT secondary (0.333 V).</p>
+
+  <button id="go" type="button">Start</button>
+  <p id="msg" role="status"></p>
+
+  <div class="chs" style="margin-top:12px">
+    <div class="panel">
+      <h2>Channel 1 (left)</h2>
+      <div class="big"><span id="o0">0.0</span><small>%</small></div>
+      <label for="s0">Load</label>
+      <input id="s0" type="range" min="0" max="105" step="0.1" value="0">
+      <input id="n0" type="number" min="0" max="105" step="0.1" value="0" inputmode="decimal" aria-label="Channel 1 percent">
+      <div class="row" style="margin-top:8px">
+        <button type="button" data-c="0" data-d="-1">&minus;1</button><button type="button" data-c="0" data-d="1">+1</button>
+        <button type="button" data-c="0" data-v="0">0</button><button type="button" data-c="0" data-v="50">50</button><button type="button" data-c="0" data-v="100">100</button>
+      </div>
+      <label for="k0">calcoef</label>
+      <input id="k0" type="number" min="0.1" max="10" step="0.001" value="1.000" inputmode="decimal">
+    </div>
+
+    <div class="panel">
+      <h2>Channel 2 (right)</h2>
+      <div class="big"><span id="o1">0.0</span><small>%</small></div>
+      <label for="s1">Load</label>
+      <input id="s1" type="range" min="0" max="105" step="0.1" value="0">
+      <input id="n1" type="number" min="0" max="105" step="0.1" value="0" inputmode="decimal" aria-label="Channel 2 percent">
+      <div class="row" style="margin-top:8px">
+        <button type="button" data-c="1" data-d="-1">&minus;1</button><button type="button" data-c="1" data-d="1">+1</button>
+        <button type="button" data-c="1" data-v="0">0</button><button type="button" data-c="1" data-v="50">50</button><button type="button" data-c="1" data-v="100">100</button>
+      </div>
+      <label for="k1">calcoef</label>
+      <input id="k1" type="number" min="0.1" max="10" step="0.001" value="1.000" inputmode="decimal">
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="note" id="info">Output: not started</p>
+    <p class="note">Calibration: set media volume to maximum, turn off sound effects, set a channel to 100 %, and measure it with a true-RMS meter. New calcoef = old calcoef × 0.333 ÷ measured V. Each channel has its own calcoef (default 1.000), and the values are remembered on this device. Sliders reach 105 % (about 0.99 Vpp, the 1 Vpp limit).</p>
+  </div>
+</main>
+
+<script>
+(function(){
+  // 100 % = 0.333 Vrms = 0.942 Vpp. With a nominal 2 Vpp full scale (calcoef 1.000), gain at 100 % is 0.471.
+  var BASE=0.942/2, F=60, ctx=null, osc=null, g=[null,null], wake=null, running=false;
+  var $=function(id){return document.getElementById(id)};
+  var go=$("go"), msg=$("msg");
+  var pct=[0,0], coef=[1,1];
+
+  try{var sv=JSON.parse(localStorage.getItem("ct60")||"null"); if(sv&&sv.coef){ for(var i=0;i<2;i++) if(sv.coef[i]>0) coef[i]=sv.coef[i]; }}catch(e){}
+
+  function clamp(x,a,b){return Math.min(b,Math.max(a,x))}
+  function save(){try{localStorage.setItem("ct60",JSON.stringify({coef:coef}))}catch(e){}}
+  function gain(i){return clamp(pct[i]/100*BASE*coef[i],0,1)}
+
+  function applyAudio(){
+    if(!ctx) return;
+    var t=ctx.currentTime;
+    for(var i=0;i<2;i++) g[i].gain.setTargetAtTime(gain(i),t,0.02);
+    var capped=[0,1].some(function(i){return pct[i]/100*BASE*coef[i]>1});
+    msg.textContent=capped?"A channel is at full scale. Lower calcoef or the percent value.":"";
+  }
+
+  function render(skip){
+    for(var i=0;i<2;i++){
+      $("o"+i).textContent=pct[i].toFixed(1);
+      $("s"+i).value=pct[i];
+      if(skip!==i) $("n"+i).value=pct[i].toFixed(1);
+    }
+  }
+
+  function setP(i,v,skip){pct[i]=clamp(+v||0,0,105);applyAudio();render(skip)}
+
+  async function start(){
+    try{
+      var AC=window.AudioContext||window.webkitAudioContext;
+      ctx=new AC({latencyHint:"interactive"});
+      if(ctx.state==="suspended") await ctx.resume();
+      osc=ctx.createOscillator(); osc.type="sine"; osc.frequency.value=F;
+      var m=ctx.createChannelMerger(2);
+      for(var i=0;i<2;i++){g[i]=ctx.createGain(); g[i].gain.value=0; osc.connect(g[i]); g[i].connect(m,0,i);}
+      m.connect(ctx.destination);
+      osc.start(); applyAudio(); running=true;
+      go.textContent="Stop"; go.classList.add("on");
+      $("info").textContent="60 Hz running, sample rate "+ctx.sampleRate+" Hz";
+      try{ if(navigator.wakeLock) wake=await navigator.wakeLock.request("screen"); }catch(e){}
+    }catch(e){ msg.textContent="Audio could not start: "+(e&&e.message?e.message:e); }
+  }
+
+  function stop(){
+    if(!ctx) return;
+    var t=ctx.currentTime, c=ctx, o=osc;
+    g[0].gain.setTargetAtTime(0,t,0.015); g[1].gain.setTargetAtTime(0,t,0.015);
+    setTimeout(function(){try{o.stop()}catch(e){} c.close()},120);
+    ctx=null;osc=null;running=false;
+    go.textContent="Start"; go.classList.remove("on");
+    $("info").textContent="Output: stopped";
+    try{ if(wake){wake.release();wake=null} }catch(e){}
+  }
+
+  go.addEventListener("click",function(){running?stop():start()});
+  document.addEventListener("visibilitychange",async function(){
+    if(running && document.visibilityState==="visible"){
+      try{ if(navigator.wakeLock) wake=await navigator.wakeLock.request("screen"); }catch(e){}
+      try{ if(ctx&&ctx.state!=="running") await ctx.resume(); }catch(e){}
+    }
+  });
+
+  [0,1].forEach(function(i){
+    $("s"+i).addEventListener("input",function(e){setP(i,e.target.value)});
+    $("n"+i).addEventListener("input",function(e){ if(e.target.value!=="") setP(i,e.target.value,i) });
+    $("n"+i).addEventListener("change",function(e){setP(i,e.target.value)});
+    $("k"+i).value=coef[i].toFixed(3);
+    $("k"+i).addEventListener("change",function(e){coef[i]=clamp(+e.target.value||1,0.1,10);e.target.value=coef[i].toFixed(3);save();applyAudio()});
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("button[data-c]"),function(b){
+    b.addEventListener("click",function(){
+      var i=+b.dataset.c;
+      setP(i, b.dataset.v!==undefined ? +b.dataset.v : pct[i]+(+b.dataset.d));
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>
